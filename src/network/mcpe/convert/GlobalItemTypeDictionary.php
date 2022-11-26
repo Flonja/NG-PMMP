@@ -43,6 +43,7 @@ final class GlobalItemTypeDictionary{
 
 	private static function make() : self{
 		$protocolPaths = [
+			ProtocolInfo::PROTOCOL_1_19_50 => "-1.19.50",
 			ProtocolInfo::CURRENT_PROTOCOL => "",
 			ProtocolInfo::PROTOCOL_1_19_0 => "-1.19.0",
 			ProtocolInfo::PROTOCOL_1_18_30 => "-1.18.30",

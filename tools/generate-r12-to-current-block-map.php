@@ -21,53 +21,64 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\tools\modernize_current_block_map;
+namespace pocketmine\generate_r12_to_current_block_map;
 
-use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
 use pocketmine\network\mcpe\convert\R12ToCurrentBlockMapEntry;
 use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializerContext;
+use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\BinaryStream;
 use pocketmine\utils\Utils;
 use Webmozart\PathUtil\Path;
-use function defined;
 use function dirname;
-use function file_get_contents;
-use function file_put_contents;
 use function strlen;
-use function usort;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
 /**
+ * @return CompoundTag[]
+ */
+function readCanonicalBlockStates(PacketSerializer $reader) : array{
+	$entries = [];
+	while(!$reader->feof()){
+		$entries[] = $reader->getNbtCompoundRoot();
+	}
+	return $entries;
+}
+
+/**
+ * @param CompoundTag[] $blockStateEntries
+ *
  * @return R12ToCurrentBlockMapEntry[]
  */
-function readOldFormat(PacketSerializer $in) : array{
-	$entriesRoot = $in->getNbtRoot();
-	$entries = $entriesRoot->getTag();
-	if(!($entries instanceof ListTag)) {
-		throw new NbtDataException("Expected TAG_List NBT root");
+function getOldToCurrentBlockMapEntries(array $blockStateEntries, array $oldBlockStateEntries) : array{
+	$entries = [];
+
+	foreach($oldBlockStateEntries as $name => $states) {
+		$name = "minecraft:$name";
+
+		foreach($states as $meta) {
+			if ($name === "minecraft:cocoa" && $meta >= 12) {
+				continue;
+			}
+
+			$state = array_values(array_filter($blockStateEntries, function(CompoundTag $tag) use ($name) : bool{
+				return $tag->getString("name") === $name;
+			}));
+			if(!isset($state[$meta])) {
+				var_dump("$name:$meta");
+				continue;
+			}
+
+			$entries[] = new R12ToCurrentBlockMapEntry($name, $meta, $state[$meta]);
+		}
 	}
 
-	$newEntries = [];
-	foreach($entries->getValue() as $entry) {
-		if(!($entry instanceof CompoundTag)) {
-			throw new NbtDataException("Expected TAG_Compound NBT entry");
-		}
-		$old = $entry->getCompoundTag("old");
-		$new = $entry->getCompoundTag("new");
-		if($old === null || $new === null) {
-			throw new NbtDataException("Expected 'old' and 'new' TAG_Compound NBT entries");
-		}
-
-		$newEntries[] = new R12ToCurrentBlockMapEntry($old->getString("name"), $old->getShort("val"), $new);
-	}
-	return $newEntries;
+	return $entries;
 }
 
 /**
@@ -91,24 +102,28 @@ function writeNewFormat(array $blockMapEntries) : string{
  * @param string[] $argv
  */
 function main(array $argv) : int{
-	if(!isset($argv[1])){
-		echo "Usage: " . PHP_BINARY . " " . __FILE__ . " <path to 'r12_to_current_block_map.nbt' file>\n";
+	if(!isset($argv[1]) && !isset($argv[2])){
+		echo "Usage: " . PHP_BINARY . " " . __FILE__ . " <path to 'r12_block_states.json' file> <path to 'canonical_block_states.nbt' file>\n";
 		return 1;
 	}
-	$file = $argv[1];
+	$legacyStatesResource = Utils::assumeNotFalse(file_get_contents($argv[1]), "Missing required resource file");
+	$contents = json_decode($legacyStatesResource, true, flags: JSON_THROW_ON_ERROR);
+	if(!is_array($contents) || !isset($contents["minecraft"])){
+		throw new AssumptionFailedError("Invalid format of map");
+	}
+
+	$file = $argv[2];
 	$reader = PacketSerializer::decoder(
 		Utils::assumeNotFalse(file_get_contents($file), "Missing required resource file"),
 		0,
 		new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary(GlobalItemTypeDictionary::getDictionaryProtocol(0)))
 	);
 	$reader->setProtocolId(0);
+	$states = readCanonicalBlockStates($reader);
 
-	$newEntries = readOldFormat($reader);
-	usort($newEntries, fn(R12ToCurrentBlockMapEntry $a, R12ToCurrentBlockMapEntry $b) => $a <=> $b);
+	$entries = getOldToCurrentBlockMapEntries($states, $contents["minecraft"]);
 
-	$rootPath = Path::getDirectory($file);
-	file_put_contents(Path::join($rootPath, "r12_to_current_block_map.bin"), writeNewFormat($newEntries));
-
+	file_put_contents(Path::join(Path::getDirectory($file), "r12_to_current_block_map.bin"), writeNewFormat($entries));
 	return 0;
 }
 

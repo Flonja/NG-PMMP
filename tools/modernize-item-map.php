@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace pocketmine\tools\modernize_item_map;
 
+use pocketmine\nbt\tag\Tag;
+use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\Utils;
 use Webmozart\PathUtil\Path;
@@ -48,13 +50,22 @@ function main(array $argv) : int{
 	}
 	$file = $argv[1];
 	$resource = Utils::assumeNotFalse(file_get_contents($file), "Missing required resource file");
-	$contents = json_decode($resource, true, flags: JSON_THROW_ON_ERROR);
-	if(!is_array($contents)){
-		throw new AssumptionFailedError("Invalid format of ID map");
+	try{
+		$contents = json_decode($resource, true, flags: JSON_THROW_ON_ERROR);
+		if(!is_array($contents)){
+			throw new AssumptionFailedError("Invalid format of ID map");
+		}
+	}catch(\JsonException){
+		// dragonfly format?
+		$contents = (new NetworkNbtSerializer())->read($resource)->mustGetCompoundTag();
 	}
 	$newContents = [];
 
 	foreach($contents as $itemName => $id) {
+		if($id instanceof Tag) {
+			$id = $id->getValue();
+		}
+
 		$newContents[$itemName] = [
 			"runtime_id" => $id,
 			"component_based" => false

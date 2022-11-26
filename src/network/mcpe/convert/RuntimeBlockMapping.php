@@ -55,6 +55,10 @@ final class RuntimeBlockMapping{
 
 	private static function make() : self{
 		$protocolPaths = [
+			ProtocolInfo::PROTOCOL_1_19_50 => [
+				self::CANONICAL_BLOCK_STATES_PATH => '-1.19.50',
+				self::R12_TO_CURRENT_BLOCK_MAP_PATH => '-1.19.50',
+			],
 			ProtocolInfo::CURRENT_PROTOCOL => [
 				self::CANONICAL_BLOCK_STATES_PATH => '',
 				self::R12_TO_CURRENT_BLOCK_MAP_PATH => '',
