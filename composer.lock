@@ -202,12 +202,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Flonja/BedrockData.git",
-                "reference": "3965052ce496c0baa4b39c281b8d454eb0a29fc5"
+                "reference": "3c7c02b24598afcbbb7f1de3ec1d82c41d011816"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Flonja/BedrockData/zipball/3965052ce496c0baa4b39c281b8d454eb0a29fc5",
-                "reference": "3965052ce496c0baa4b39c281b8d454eb0a29fc5",
+                "url": "https://api.github.com/repos/Flonja/BedrockData/zipball/3c7c02b24598afcbbb7f1de3ec1d82c41d011816",
+                "reference": "3c7c02b24598afcbbb7f1de3ec1d82c41d011816",
                 "shasum": ""
             },
             "type": "library",
@@ -218,7 +218,7 @@
             "support": {
                 "source": "https://github.com/Flonja/BedrockData/tree/protocol/future"
             },
-            "time": "2022-11-19T15:17:21+00:00"
+            "time": "2022-11-30T13:44:43+00:00"
         },
         {
             "name": "nethergamesmc/bedrock-protocol",
